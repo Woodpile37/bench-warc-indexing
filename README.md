@@ -1,3 +1,30 @@
+
+# New readme for www4 task
+
+For team members, it is necessary to read the ShiMo document.
+
+## Back-end
+
+```sh
+python3 -m venv venv
+. venv/bin/activate
+cd back-end
+pip install -r requirements.txt
+cd ../front-end
+yarn install
+yarn build
+```
+
+## Testing indexing
+```sh
+# run es at localhost:9200
+sudo systemctl enable --now elasticsearch.service
+# indexing
+python www4-index-process.py
+```
+
+# Original readme
+
 ## Intro
 
 This is a simple search interface meant to support basic and faceted search on top of ElasticSearch.
