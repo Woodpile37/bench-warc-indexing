@@ -1,7 +1,7 @@
 
-# New readme for www4 task
+# Chinese Readme for www4 Task
 
-For team members, it is necessary to read the ShiMo document.
+See: https://shimo.im/docs/KCKqdTK9wh6QCcjK
 
 ## Back-end
 
