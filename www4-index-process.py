@@ -4,7 +4,8 @@ import sys
 import traceback
 from bs4 import BeautifulSoup
 from elasticsearch import helpers
-from elasticsearch import Elasticsearch, TransportError
+from elasticsearch import Elasticsearch, TransportError, ElasticsearchException
+import spacy
 #import argparse
 
 # Configuration
@@ -14,11 +15,16 @@ port = 9200
 index_name = 'better_eng'
 create = False
 
+# Initialisation of ES & spaCy
 es = Elasticsearch(hosts=[{"host": host, "port": port}],
                    retry_on_timeout=True, max_retries=10)
+# A pre-built model is required
+# python -m spacy download en_core_web_sm
+nlp = spacy.load("en_core_web_sm") # Für Englisch
 
+# Remove target index
 # FOR TEST ONLY!!!
-#es.indices.delete(index=index_name, ignore=[400, 404])
+es.indices.delete(index=index_name, ignore=[400, 404])
 
 # Settings for initialising ES index
 settings = {
@@ -83,6 +89,8 @@ def read_warc_file(file_path):
                 type = record["WARC-Type"]
                 if type != 'response':
                     continue
+                warc_file_name = record["WARC-TREC-ID"]
+                date = record["WARC-Date"]
                 url = record['WARC-Target-URI']
                 uid = record['WARC-RECORD-ID'].replace("<urn:uuid:", "").replace(">", "")
                 content = record.payload.read()
@@ -93,6 +101,22 @@ def read_warc_file(file_path):
                 if soup.body is not None:
                     content_body = soup.body.get_text()
                     text = content_body.replace("\t", " ").replace("\n", " ").replace("  ", " ")
+                    # Extract & prettify text via spaCy
+                    spacy_text = nlp(text)
+                    text = '\n'.join([str(sent) for sent in spacy_text.sents])
+                    # Extract entities via spaCy
+                    pl = []
+                    gl = []
+                    ol = []
+                    for ent in spacy_text.ents:
+                        if ent.label_ == 'PERSON':
+                            pl.append(ent.text)
+                        elif ent.label_ == 'GPE':
+                            gl.append(ent.text)
+                        elif ent.label_ == 'ORG':
+                            ol.append(ent.text)
+                        else:
+                            continue
                 else:
                     text = ""
 
@@ -101,25 +125,30 @@ def read_warc_file(file_path):
                 else:
                     title = text[:30]
 
+                # Insert the document into es index
                 source_block = {
+                    "uuid":uid,
                     "title":title,
                     "orig":{
                         "derived-metadata":{
                             "text":text,
-                            "warc-file":uid
+                            "warc-file":warc_file_name
                         },
                         "WARC-Target-URI":url
                     },
+                    "guess-publish-date":date,
                     "text":text,
-                    #"PERSON":"",
-                    #"ORG":"",
-                    #"GPE":""
+                    "PERSON":pl,
+                    "ORG":ol,
+                    "GPE":gl
                 }
                 print("Indexing: "+uid)
                 try:
                     es.index(index = index_name, id = uid, body = source_block)
+                except ElasticsearchException as e:
+                    print(e.info)
                 except:
-                    print("error")
+                    print("Unknown error")
             except:
                 traceback.print_exc()
 
