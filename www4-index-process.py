@@ -50,7 +50,7 @@ settings = {
     'mappings': {
         # 'docs' is a type for ES 6.X
         # For ES 7.x, please annotate 'docs' field
-        #'docs':{
+        'docs':{
             'properties': {
                 'text': {
                     # text is stemmed; text.exact is not.
@@ -68,7 +68,7 @@ settings = {
                     'enabled': False, # don't index this
                 }
             }
-        #}
+        }
     }
 }
 
